@@ -18,3 +18,7 @@ The purpose of this test project is to evaluate your ability to implement essent
 1. Clone the repository and run `npm install --legacy-peer-deps` to install the dependencies.
     > Please use Node version 18.19.0.
 2. Run `npm run start` to start the dev server.
+
+## Changes done
+1. I have used a airdropper contract to handle multi-airdrop funtionality in one go so airdropping user have not to undergo tedious procedure of signing each and every airdrop transaction if directly done by using token contract itself
+2. I have attached the solidity code files as well for your reference 
