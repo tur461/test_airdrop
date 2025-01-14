@@ -11,7 +11,7 @@ const ConnectWallet = (props) => {
     >
       <h3>{isConnected ? "Connected" : "Connect Wallet"}</h3>
     </Button>
-    { walletAddr && <p>{walletAddr}</p>}
+    { walletAddr && <p>Address: {walletAddr}</p>}
     </div>
   );
 };

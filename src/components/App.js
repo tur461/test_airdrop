@@ -9,11 +9,10 @@ import Airdrop from "./Airdrop";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { Spinner } from "react-bootstrap";
 import { useEffect, useState } from "react";
-import { ethers } from "ethers";
+import { ethers, isAddress } from "ethers";
 import ERC20_ABI from '../erc20_abi';
 import { TOKEN_ADDR } from "../constants";
-
-//ethers.utils.isAddress(address)
+import InvalidRecipeintsTable from "./InvalidRecipientsTable/InvalidRecipeintsTable";
 
 function App() {
   const [signer, setSigner] = useState(null);
@@ -27,13 +26,14 @@ function App() {
   const [loading, setLoading] = useState(!1);
   const [balanceAmount, setBalanceAmount] = useState(0); // Sender's token balance
   const [tokenContract, setTokenContract] = useState(null)
+  const [invalidRecipientList, setInvalidRecipientList] = useState([]);
 
   const handleTokenContractInit = async () => {
     const code = await provider.getCode(tokenAddress);
     if (code === '0x') {
       alert('No contract found at address: ' + tokenAddress + ' on selected chain.')
       console.error('No contract found at this address');
-      return false;
+      return
     }
     
     const tContract = new ethers.Contract(tokenAddress, ERC20_ABI, signer)
@@ -113,11 +113,10 @@ function App() {
       return;
     }
 
-    setLoading(true);
+    setLoading(!0);
     try {
       const decimals = await tokenContract.decimals();
       const amount = ethers.parseUnits(quantity.toString(), decimals);
-
       for (let i = 0; i < wallets.length; i++) {
         const recipient = wallets[i];
         console.log(`Transferring ${quantity} tokens to ${recipient}...`);
@@ -125,6 +124,7 @@ function App() {
         await tx.wait(); // Wait for the transaction to confirm
         console.log(`Successfully sent to ${recipient}`);
       }
+
       alert("Airdrop completed successfully!");
     } catch (error) {
       console.error("Airdrop failed:", error);
@@ -155,8 +155,14 @@ function App() {
           </button> */}
         </div>
         <div className="event">
-          <SenderTable wallets={wallets} setWallets={setWallets} isConnected = {isConnected}/>
+          <SenderTable wallets={wallets} setWallets={setWallets} setInvalidRecipients={setInvalidRecipientList} isConnected = {isConnected}/>
         </div>
+        {
+          invalidRecipientList.length > 0 &&
+          <div className="event">
+            <InvalidRecipeintsTable invalidRecipients={invalidRecipientList}/>
+          </div>
+        }
         <div className="main">
           <TokenPart
             tokenaddress={tokenAddress}

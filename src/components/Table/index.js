@@ -7,12 +7,14 @@ import InputGroup from "react-bootstrap/InputGroup";
 import Form from "react-bootstrap/Form";
 import { useEffect, useState } from "react";
 import "./style.css";
+import { CSV_FILE_URL } from "../../constants";
+import {isAddress} from 'ethers'
 
 const SenderTable = (props) => {
   let indexOfLastItem;
   let indexOfFirstItem;
   let currentItems;
-  const { wallets, setWallets, isConnected } = props;
+  const { wallets, setWallets, isConnected, setInvalidRecipients } = props;
   const { currentPage, setCurrentPage } = useState(1);
   const [itemPerPage] = useState(5);
 
@@ -26,13 +28,20 @@ const SenderTable = (props) => {
     setCurrentPage(pageNumber);
   };
   const uploadWallet = async (e) => {
-    // setWallets(dummy);
-    console.log('pub url:',process.env.PUBLIC_URL)
-    const response = await fetch(process.env.PUBLIC_URL + "/wallets.csv");
+    const response = await fetch(CSV_FILE_URL);
     const data = await response.text();
     const dataArray = data.replace(/\s/g, "").split(",");
-    const resultArr = dataArray.filter((item) => item !== "");
-    setWallets(resultArr);
+    
+    let invRecipients = [], validRecipients = [];
+    
+    for(let i=0, len = dataArray.length, item=''; i<len && (item = dataArray[i]); ++i) {
+      console.log(item)
+      if(isAddress(item)) validRecipients.push(item)
+      else invRecipients.push(item)
+    }
+  
+    validRecipients.length && setWallets(validRecipients);
+    invRecipients.length && setInvalidRecipients(invRecipients)
   };
 
   return (
@@ -41,7 +50,7 @@ const SenderTable = (props) => {
         <thead>
           <tr>
             <th>No</th>
-            <th>Wallet Address</th>
+            <th>Valid Recipients</th>
           </tr>
         </thead>
         <tbody>
@@ -81,7 +90,7 @@ const SenderTable = (props) => {
           disabled={!isConnected}
           onClick={uploadWallet}
         >
-          Upload file
+          Load CSV File
         </Button>
         {/* <InputGroup className="addButton">
           <Form.Control
