@@ -10,8 +10,8 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import { Spinner } from "react-bootstrap";
 import { useEffect, useState } from "react";
 import { ethers, isAddress } from "ethers";
-import ERC20_ABI from '../erc20_abi';
-import { TOKEN_ADDR } from "../constants";
+import {AIRDROPPER, AIRDROPPER_ABI, ERC20, ERC20_ABI} from '../ABIs';
+import { AIRDROPPER_ADDR, TOKEN_ADDR } from "../constants";
 import InvalidRecipeintsTable from "./InvalidRecipientsTable/InvalidRecipeintsTable";
 
 function App() {
@@ -19,6 +19,7 @@ function App() {
   const [provider, setProvider] = useState(null);
   const [isConnected, setIsConnected] = useState(!1); // Connection state
   const [tokenAddress, setTokenAddress] = useState(TOKEN_ADDR); // ERC-20 token contract address
+  const [airdropperAddress, setAirdropperAddress] = useState(AIRDROPPER_ADDR); // ERC-20 token contract address
   const [wallets, setWallets] = useState([]); // List of recipient addresses
   const [walletAddress, setWalletAddress] = useState("");
   const [quantity, setQuantity] = useState(0); // Tokens to send per wallet
@@ -26,25 +27,30 @@ function App() {
   const [loading, setLoading] = useState(!1);
   const [balanceAmount, setBalanceAmount] = useState(0); // Sender's token balance
   const [tokenContract, setTokenContract] = useState(null)
+  const [airdropperContract, setAirdropperContract] = useState(null)
   const [invalidRecipientList, setInvalidRecipientList] = useState([]);
 
-  const handleTokenContractInit = async () => {
-    const code = await provider.getCode(tokenAddress);
-    if (code === '0x') {
-      alert('No contract found at address: ' + tokenAddress + ' on selected chain.')
-      console.error('No contract found at this address');
+  const handleContractInit = async () => {
+    const code1 = await provider.getCode(tokenAddress);
+    const code2 = await provider.getCode(airdropperAddress);
+    if (code1 === '0x' || code2 === '0x') {
+      const addr = code1 === '0x' ? tokenAddress : airdropperAddress;
+      alert('No contract found at address: ' + (addr) + ' on selected chain.')
+      console.error('No contract found at this address:', addr);
       return
     }
     
     const tContract = new ethers.Contract(tokenAddress, ERC20_ABI, signer)
+    const adContract = new ethers.Contract(airdropperAddress, AIRDROPPER_ABI, signer)
     setTokenContract(tContract)
+    setAirdropperContract(adContract)
   }
   
   useEffect(() => {
-    if (tokenAddress && signer) {
-      handleTokenContractInit()
+    if (tokenAddress && airdropperAddress && signer) {
+      handleContractInit()
     }
-  }, [tokenAddress, signer]);
+  }, [tokenAddress, airdropperAddress, signer]);
 
   useEffect(_ => {
     getTokenBalance()
@@ -117,14 +123,10 @@ function App() {
     try {
       const decimals = await tokenContract.decimals();
       const amount = ethers.parseUnits(quantity.toString(), decimals);
-      for (let i = 0; i < wallets.length; i++) {
-        const recipient = wallets[i];
-        console.log(`Transferring ${quantity} tokens to ${recipient}...`);
-        const tx = await tokenContract.transfer(recipient, amount);
-        await tx.wait(); // Wait for the transaction to confirm
-        console.log(`Successfully sent to ${recipient}`);
-      }
-
+      console.log(`Transferring ${quantity} tokens to recipients:`, wallets);
+      const tx = await airdropperContract.airdrop_multi(wallets, amount);
+      await tx.wait(); // Wait for the transaction to confirm
+      console.log(`Successfully sent`);
       alert("Airdrop completed successfully!");
     } catch (error) {
       console.error("Airdrop failed:", error);
