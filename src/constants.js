@@ -1,0 +1,6 @@
+const TOKEN_ADDR = "0xeE7cb416A3DA70b62716e10755D8dfBB4d2E64aA";
+
+
+export {
+    TOKEN_ADDR
+}

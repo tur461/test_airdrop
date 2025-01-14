@@ -5,6 +5,7 @@ import "./Token.css";
 
 const TokenPart = (props) => {
   const { balanceAmount, tokenaddress, setTokenAddress } = props;
+  console.log('balance in token part:', balanceAmount)
   return (
     <div className="tokenaddr">
       <InputGroup size="lg" className="inputgroup">

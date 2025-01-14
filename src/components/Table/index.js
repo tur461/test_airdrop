@@ -27,6 +27,7 @@ const SenderTable = (props) => {
   };
   const uploadWallet = async (e) => {
     // setWallets(dummy);
+    console.log('pub url:',process.env.PUBLIC_URL)
     const response = await fetch(process.env.PUBLIC_URL + "/wallets.csv");
     const data = await response.text();
     const dataArray = data.replace(/\s/g, "").split(",");

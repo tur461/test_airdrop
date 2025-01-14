@@ -10,61 +10,104 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import { Spinner } from "react-bootstrap";
 import { useEffect, useState } from "react";
 import { ethers } from "ethers";
-import { RPC_URL, SECRET_KEY } from "./config";
+import ERC20_ABI from '../erc20_abi';
+import { TOKEN_ADDR } from "../constants";
 
-// Load the sender's wallet from the private key
-const provider = new ethers.JsonRpcProvider(RPC_URL);
-const senderWallet = new ethers.Wallet(SECRET_KEY, provider);
+//ethers.utils.isAddress(address)
 
 function App() {
-  // State variables
-  const [isConnected, setIsConnected] = useState(false); // Connection state
-  const [tokenAddress, setTokenAddress] = useState("0xdAC17F958D2ee523a2206206994597C13D831ec7"); // ERC-20 token contract address
+  const [signer, setSigner] = useState(null);
+  const [provider, setProvider] = useState(null);
+  const [isConnected, setIsConnected] = useState(!1); // Connection state
+  const [tokenAddress, setTokenAddress] = useState(TOKEN_ADDR); // ERC-20 token contract address
   const [wallets, setWallets] = useState([]); // List of recipient addresses
   const [walletAddress, setWalletAddress] = useState("");
   const [quantity, setQuantity] = useState(0); // Tokens to send per wallet
   const [fee, setFee] = useState(0); // Gas fee per transaction (not actively used for Ethereum)
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(!1);
   const [balanceAmount, setBalanceAmount] = useState(0); // Sender's token balance
+  const [tokenContract, setTokenContract] = useState(null)
 
-  // Fetch token balance of the sender's wallet
-  useEffect(() => {
-    if (tokenAddress) {
-      getTokenBalance();
+  const handleTokenContractInit = async () => {
+    const code = await provider.getCode(tokenAddress);
+    if (code === '0x') {
+      alert('No contract found at address: ' + tokenAddress + ' on selected chain.')
+      console.error('No contract found at this address');
+      return false;
     }
-  }, [tokenAddress]);
+    
+    const tContract = new ethers.Contract(tokenAddress, ERC20_ABI, signer)
+    setTokenContract(tContract)
+  }
+  
+  useEffect(() => {
+    if (tokenAddress && signer) {
+      handleTokenContractInit()
+    }
+  }, [tokenAddress, signer]);
+
+  useEffect(_ => {
+    getTokenBalance()
+  }, [tokenContract])
 
   const getTokenBalance = async () => {
+    if(!isConnected) {
+      console.error("wallet not connected.")
+      return
+    } else if(!tokenContract) {
+      console.error("token contract not initialized")
+      return
+    }
     try {
-      const erc20ABI = [
-        "function balanceOf(address account) external view returns (uint256)",
-        "function decimals() view returns (uint8)",
-      ];
-      const tokenContract = new ethers.Contract(tokenAddress, erc20ABI, provider);
       const decimals = await tokenContract.decimals();
-      const balance = await tokenContract.balanceOf(senderWallet.address);
+      const balance = await tokenContract.balanceOf(walletAddress);
+      console.log('decimals:', decimals)
+      console.log('bal of tokens:', balance)
       setBalanceAmount(Number(ethers.formatUnits(balance, decimals)));
     } catch (error) {
       console.error("Error fetching token balance:", error);
-      alert("Failed to fetch token balance. Check the token address and try again.");
     }
   };
+
+  const handleDisconnect = _ => {
+    setSigner(null)
+    setProvider(null)
+    setWalletAddress('')
+    setIsConnected(!1);
+  }
 
   const handleConnect = async () => {
     if (isConnected) {
       const confirmDisconnect = window.confirm("Do you want to disconnect?");
       if (confirmDisconnect) {
-        setIsConnected(false);
+        handleDisconnect();
       }
     } else {
-      // Placeholder for future MetaMask logic
-      alert("Simulating wallet connection. MetaMask support coming soon.");
-      setIsConnected(true);
+      if (!window.ethereum) {
+        alert('Couldn\'t find the Metamask!');
+      }
+      try {
+        await window.ethereum.request({ method: 'eth_requestAccounts' });
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+        const accAddr = await signer.getAddress();
+        setSigner(signer)
+        setIsConnected(!0)
+        setProvider(provider)
+        setWalletAddress(accAddr)
+        console.log('Connected wallet address:', accAddr);
+      } catch (e) {
+        console.error('Failed to connect to MetaMask:', e);
+      }
     }
   };
 
   // Airdrop logic
   const handleAirdrop = async () => {
+    if(!isConnected) {
+      console.error("wallet not connected.")
+      return
+    }
     if (!tokenAddress || wallets.length === 0 || quantity <= 0) {
       alert("Please fill in all parameters correctly!");
       return;
@@ -72,11 +115,6 @@ function App() {
 
     setLoading(true);
     try {
-      const erc20ABI = [
-        "function transfer(address to, uint256 value) public returns (bool)",
-        "function decimals() view returns (uint8)",
-      ];
-      const tokenContract = new ethers.Contract(tokenAddress, erc20ABI, senderWallet);
       const decimals = await tokenContract.decimals();
       const amount = ethers.parseUnits(quantity.toString(), decimals);
 
@@ -90,7 +128,6 @@ function App() {
       alert("Airdrop completed successfully!");
     } catch (error) {
       console.error("Airdrop failed:", error);
-      alert("Airdrop failed! Check the console for more details.");
     }
     setLoading(false);
   };
@@ -110,6 +147,7 @@ function App() {
           <ConnectWallet
             handleConnect={handleConnect}
             isConnected={isConnected}
+            walletAddr={walletAddress}
           />
         </div>
           {/* <button className="btn btn-danger" disabled>
